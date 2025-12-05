@@ -37,17 +37,17 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onSubmit }) => {
 
         <h2 className="text-2xl font-bold text-center mb-2">Configurar API Key</h2>
         <p className="text-gray-400 text-center mb-8 text-sm">
-          Para usar o Nicho Finder, insira sua chave da API do Google Gemini.
+          Para usar o Nicho Finder, insira sua chave da API da OpenAI.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-mono text-gray-500 uppercase mb-2">Google Gemini API Key</label>
+            <label className="block text-xs font-mono text-gray-500 uppercase mb-2">OpenAI API Key</label>
             <input
               type="password"
               value={key}
               onChange={(e) => setKey(e.target.value)}
-              placeholder="Ex: AIzaSy..."
+              placeholder="Ex: sk-..."
               className="w-full bg-slate-950 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
             />
           </div>
@@ -63,7 +63,7 @@ const ApiKeyInput: React.FC<ApiKeyInputProps> = ({ onSubmit }) => {
         </form>
 
         <p className="mt-6 text-center text-xs text-gray-500">
-          Sua chave é usada apenas localmente para comunicar com a API.
+          Sua chave é armazenada localmente e usada apenas para comunicar com a OpenAI.
         </p>
       </motion.div>
     </div>

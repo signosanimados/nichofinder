@@ -1,5 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
 const SYSTEM_PROMPT = `
 Você é um CONSULTOR ESPECIALISTA em criação de canais do YouTube e trabalha com a metodologia chamada NICHO FINDER.
 
@@ -41,18 +39,10 @@ export default async function handler(req, res) {
     }
 
     // Use API key from request body first, fallback to environment variable
-    const apiKey = userApiKey || process.env.GEMINI_API_KEY;
+    const apiKey = userApiKey || process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return res.status(400).json({ error: 'API Key nao fornecida. Configure sua chave do Google Gemini.' });
+      return res.status(400).json({ error: 'API Key nao fornecida. Configure sua chave da OpenAI.' });
     }
-
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-pro',
-      generationConfig: {
-        responseMimeType: 'application/json'
-      }
-    });
 
     const prompt = `
       ${SYSTEM_PROMPT}
@@ -88,8 +78,30 @@ export default async function handler(req, res) {
       }
     `;
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: 'Você é um consultor especialista em YouTube. Sempre responda em JSON válido.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        response_format: { type: 'json_object' }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `OpenAI API error: ${response.status}`);
+    }
+
+    const result = await response.json();
+    const text = result.choices[0]?.message?.content;
     const data = JSON.parse(text);
 
     return res.status(200).json(data);
