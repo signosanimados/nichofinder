@@ -16,7 +16,12 @@ import {
   Copy,
   Check,
   Download,
-  Loader2
+  Loader2,
+  Users,
+  Hash,
+  BarChart3,
+  Eye,
+  Play
 } from 'lucide-react';
 import { ViralAnalysisResult } from '../types';
 import { apiService } from '../services/apiService';
@@ -26,10 +31,12 @@ interface ViralResultsDashboardProps {
   onReset: () => void;
 }
 
-type TabId = 'overview' | 'opportunities' | 'formats' | 'titles' | 'thumbnails' | 'ideas' | 'calendar' | 'microniches' | 'strategy';
+type TabId = 'overview' | 'channels' | 'hashtags' | 'opportunities' | 'formats' | 'titles' | 'thumbnails' | 'ideas' | 'calendar' | 'microniches' | 'strategy';
 
 const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'overview', label: 'Resumo', icon: TrendingUp },
+  { id: 'channels', label: 'Canais', icon: Users },
+  { id: 'hashtags', label: 'Hashtags', icon: Hash },
   { id: 'opportunities', label: 'Oportunidades', icon: Zap },
   { id: 'formats', label: 'Formatos', icon: Layers },
   { id: 'titles', label: 'Títulos', icon: Type },
@@ -43,12 +50,23 @@ const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
 const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onReset }) => {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [copiedTitle, setCopiedTitle] = useState<number | null>(null);
+  const [copiedHashtag, setCopiedHashtag] = useState<number | null>(null);
   const [downloading, setDownloading] = useState(false);
 
-  const copyToClipboard = (text: string, index: number) => {
+  const copyToClipboard = (text: string, index: number, type: 'title' | 'hashtag' = 'title') => {
     navigator.clipboard.writeText(text);
-    setCopiedTitle(index);
-    setTimeout(() => setCopiedTitle(null), 2000);
+    if (type === 'hashtag') {
+      setCopiedHashtag(index);
+      setTimeout(() => setCopiedHashtag(null), 2000);
+    } else {
+      setCopiedTitle(index);
+      setTimeout(() => setCopiedTitle(null), 2000);
+    }
+  };
+
+  const copyAllHashtags = () => {
+    const allHashtags = data.hashtags_recomendadas?.map(h => h.hashtag).join(' ') || '';
+    navigator.clipboard.writeText(allHashtags);
   };
 
   const handleDownloadPDF = async () => {
@@ -94,7 +112,13 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
               </div>
               <div>
                 <h1 className="text-xl font-bold">Análise de Tendências Virais</h1>
-                <p className="text-sm text-gray-400">Relatório completo gerado por IA</p>
+                <p className="text-sm text-gray-400">
+                  {data.youtube_raw_data && (
+                    <span>
+                      {data.youtube_raw_data.trending_count} trending | {data.youtube_raw_data.search_results_count} pesquisados | {data.youtube_raw_data.channels_count || 0} canais
+                    </span>
+                  )}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -164,25 +188,203 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
                   </p>
                 </div>
 
+                {/* YouTube Data Stats */}
+                {data.dados_youtube_analisados && (
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                      <BarChart3 className="w-5 h-5 text-red-500" />
+                      Dados Reais do YouTube Analisados
+                    </h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-red-400">{data.dados_youtube_analisados.total_videos_analisados}</div>
+                        <div className="text-sm text-gray-400">Vídeos Analisados</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-blue-400">
+                          {data.dados_youtube_analisados.media_views >= 1000000
+                            ? (data.dados_youtube_analisados.media_views / 1000000).toFixed(1) + 'M'
+                            : data.dados_youtube_analisados.media_views >= 1000
+                            ? (data.dados_youtube_analisados.media_views / 1000).toFixed(1) + 'K'
+                            : data.dados_youtube_analisados.media_views}
+                        </div>
+                        <div className="text-sm text-gray-400">Média de Views</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-sm font-medium text-emerald-400 truncate px-2" title={data.dados_youtube_analisados.video_mais_visto}>
+                          {data.dados_youtube_analisados.video_mais_visto?.substring(0, 30)}...
+                        </div>
+                        <div className="text-sm text-gray-400">Vídeo Mais Visto</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Quick Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center">
-                    <div className="text-3xl font-bold text-orange-400">{data.oportunidades_tendencia.length}</div>
+                    <div className="text-3xl font-bold text-orange-400">{data.oportunidades_tendencia?.length || 0}</div>
                     <div className="text-sm text-gray-400 mt-1">Oportunidades</div>
                   </div>
                   <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center">
-                    <div className="text-3xl font-bold text-purple-400">{data.formatos_funcionando.length}</div>
-                    <div className="text-sm text-gray-400 mt-1">Formatos</div>
+                    <div className="text-3xl font-bold text-red-400">{data.canais_analisados?.length || 0}</div>
+                    <div className="text-sm text-gray-400 mt-1">Canais</div>
                   </div>
                   <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center">
-                    <div className="text-3xl font-bold text-emerald-400">{data.ideias_videos_virais.length}</div>
+                    <div className="text-3xl font-bold text-purple-400">{data.hashtags_recomendadas?.length || 0}</div>
+                    <div className="text-sm text-gray-400 mt-1">Hashtags</div>
+                  </div>
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center">
+                    <div className="text-3xl font-bold text-emerald-400">{data.ideias_videos_virais?.length || 0}</div>
                     <div className="text-sm text-gray-400 mt-1">Ideias de Vídeo</div>
                   </div>
                   <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-center">
-                    <div className="text-3xl font-bold text-blue-400">{data.micro_nichos_promissores.length}</div>
+                    <div className="text-3xl font-bold text-blue-400">{data.micro_nichos_promissores?.length || 0}</div>
                     <div className="text-sm text-gray-400 mt-1">Micro-nichos</div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Channels Tab */}
+            {activeTab === 'channels' && (
+              <div className="space-y-4">
+                <h2 className="text-2xl font-bold mb-6 flex items-center gap-3">
+                  <Users className="w-6 h-6 text-red-500" />
+                  Canais Principais Analisados
+                </h2>
+                {data.canais_analisados && data.canais_analisados.length > 0 ? (
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {data.canais_analisados.map((channel, idx) => (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="bg-slate-900 border border-slate-800 rounded-xl p-6"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className="p-3 bg-red-500/10 rounded-xl">
+                            <Play className="w-6 h-6 text-red-500" />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-lg font-bold text-white mb-3">{channel.nome}</h3>
+                            <div className="grid grid-cols-2 gap-3 mb-4">
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase">Inscritos</p>
+                                <p className="text-lg font-semibold text-red-400">{channel.inscritos}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase">Total Views</p>
+                                <p className="text-lg font-semibold text-blue-400">{channel.total_views}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase">Média Recente</p>
+                                <p className="text-lg font-semibold text-emerald-400">{channel.media_views_recentes}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-gray-500 uppercase">Vídeos Analisados</p>
+                                <p className="text-lg font-semibold text-purple-400">{channel.videos_analisados}</p>
+                              </div>
+                            </div>
+                            <div className="bg-slate-800/50 rounded-lg p-3">
+                              <p className="text-xs text-gray-500 uppercase mb-1">Melhor Vídeo</p>
+                              <p className="text-sm text-white font-medium">{channel.melhor_video}</p>
+                              <p className="text-xs text-orange-400 mt-1 flex items-center gap-1">
+                                <Eye className="w-3 h-3" /> {channel.melhor_video_views} views
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-400">
+                    <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhum canal foi analisado nesta busca.</p>
+                    <p className="text-sm mt-2">Tente buscar por um nicho ou palavra-chave específica.</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Hashtags Tab */}
+            {activeTab === 'hashtags' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold flex items-center gap-3">
+                    <Hash className="w-6 h-6 text-purple-500" />
+                    Hashtags Recomendadas
+                  </h2>
+                  {data.hashtags_recomendadas && data.hashtags_recomendadas.length > 0 && (
+                    <button
+                      onClick={copyAllHashtags}
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 text-sm font-medium transition-colors"
+                    >
+                      <Copy className="w-4 h-4" />
+                      Copiar Todas
+                    </button>
+                  )}
+                </div>
+
+                {data.hashtags_recomendadas && data.hashtags_recomendadas.length > 0 ? (
+                  <>
+                    {/* Quick Copy Section */}
+                    <div className="bg-slate-900 border border-slate-800 rounded-xl p-6">
+                      <p className="text-sm text-gray-400 mb-3">Clique para copiar individualmente:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {data.hashtags_recomendadas.map((tag, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => copyToClipboard(tag.hashtag, idx, 'hashtag')}
+                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                              tag.relevancia === 'alta'
+                                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30 border border-red-500/30'
+                                : tag.relevancia === 'media'
+                                ? 'bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30 border border-yellow-500/30'
+                                : 'bg-green-500/20 text-green-400 hover:bg-green-500/30 border border-green-500/30'
+                            }`}
+                          >
+                            {copiedHashtag === idx ? (
+                              <span className="flex items-center gap-1">
+                                <Check className="w-3 h-3" /> Copiado!
+                              </span>
+                            ) : (
+                              tag.hashtag
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Detailed List */}
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {data.hashtags_recomendadas.map((tag, idx) => (
+                        <motion.div
+                          key={idx}
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: idx * 0.03 }}
+                          className="bg-slate-900 border border-slate-800 rounded-xl p-4"
+                        >
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-lg font-bold text-purple-400">{tag.hashtag}</span>
+                            <span className={`text-xs px-2 py-1 rounded-full ${urgencyColors[tag.relevancia]}`}>
+                              {tag.relevancia}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-400">{tag.uso_recomendado}</p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-12 text-gray-400">
+                    <Hash className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhuma hashtag foi coletada nesta análise.</p>
+                  </div>
+                )}
               </div>
             )}
 
@@ -190,7 +392,7 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
             {activeTab === 'opportunities' && (
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold mb-6">Oportunidades de Tendência</h2>
-                {data.oportunidades_tendencia.map((opp, idx) => (
+                {data.oportunidades_tendencia?.map((opp, idx) => (
                   <motion.div
                     key={idx}
                     initial={{ opacity: 0, x: -20 }}
@@ -223,7 +425,7 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold mb-6">Formatos que Estão Funcionando</h2>
                 <div className="grid md:grid-cols-2 gap-4">
-                  {data.formatos_funcionando.map((format, idx) => (
+                  {data.formatos_funcionando?.map((format, idx) => (
                     <motion.div
                       key={idx}
                       initial={{ opacity: 0, scale: 0.95 }}
@@ -240,7 +442,7 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
                       <p className="text-gray-400 mb-4">{format.descricao}</p>
                       <div className="space-y-2">
                         <p className="text-xs text-gray-500 uppercase tracking-wider">Exemplos:</p>
-                        {format.exemplos.map((ex, i) => (
+                        {format.exemplos?.map((ex, i) => (
                           <div key={i} className="flex items-center gap-2 text-sm text-gray-300">
                             <ChevronRight className="w-4 h-4 text-purple-400" />
                             {ex}
@@ -259,12 +461,12 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
                 <div>
                   <h2 className="text-2xl font-bold mb-6">Padrões de Títulos Virais</h2>
                   <div className="grid md:grid-cols-2 gap-4">
-                    {data.padroes_titulos.map((pattern, idx) => (
+                    {data.padroes_titulos?.map((pattern, idx) => (
                       <div key={idx} className="bg-slate-900 border border-slate-800 rounded-xl p-6">
                         <h3 className="text-lg font-semibold text-purple-400 mb-2">{pattern.tipo_gatilho}</h3>
                         <p className="text-gray-400 mb-4">{pattern.descricao}</p>
                         <div className="space-y-2">
-                          {pattern.exemplos.map((ex, i) => (
+                          {pattern.exemplos?.map((ex, i) => (
                             <div key={i} className="text-sm text-gray-300 bg-slate-800/50 px-3 py-2 rounded-lg">
                               "{ex}"
                             </div>
@@ -281,7 +483,7 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
                     Títulos Prontos para Usar
                   </h3>
                   <div className="space-y-3">
-                    {data.titulos_virais_prontos.map((title, idx) => (
+                    {data.titulos_virais_prontos?.map((title, idx) => (
                       <div
                         key={idx}
                         className="bg-slate-900 border border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4 group"
@@ -311,8 +513,8 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
             {activeTab === 'thumbnails' && (
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold mb-6">Padrões Visuais de Thumbnail</h2>
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {data.padroes_thumbnails.map((pattern, idx) => (
+                <div className="grid md:grid-cols-2 gap-4">
+                  {data.padroes_thumbnails?.map((pattern, idx) => (
                     <motion.div
                       key={idx}
                       initial={{ opacity: 0, y: 20 }}
@@ -320,15 +522,48 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
                       transition={{ delay: idx * 0.05 }}
                       className="bg-slate-900 border border-slate-800 rounded-xl p-6"
                     >
-                      <div className="p-3 bg-gradient-to-r from-pink-500 to-purple-500 rounded-lg w-fit mb-4">
-                        <Image className="w-5 h-5 text-white" />
-                      </div>
-                      <h3 className="text-lg font-semibold text-white mb-2">{pattern.elemento}</h3>
-                      <p className="text-gray-400 text-sm mb-3">{pattern.descricao}</p>
-                      <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
-                        <p className="text-sm text-purple-300">
-                          <strong>Dica:</strong> {pattern.dica_pratica}
-                        </p>
+                      <div className="flex items-start gap-4">
+                        <div className="p-3 bg-gradient-to-r from-pink-500 to-purple-500 rounded-lg flex-shrink-0">
+                          <Image className="w-5 h-5 text-white" />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-white mb-2">{pattern.elemento}</h3>
+                          <p className="text-gray-400 text-sm mb-3">{pattern.descricao}</p>
+
+                          {/* Visual Example */}
+                          {pattern.exemplo_visual && (
+                            <div className="bg-slate-800/50 rounded-lg p-3 mb-3">
+                              <p className="text-xs text-gray-500 uppercase mb-1">Exemplo Visual</p>
+                              <p className="text-sm text-white">{pattern.exemplo_visual}</p>
+                            </div>
+                          )}
+
+                          {/* Recommended Colors */}
+                          {pattern.cores_recomendadas && pattern.cores_recomendadas.length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-xs text-gray-500 uppercase mb-2">Cores Recomendadas</p>
+                              <div className="flex gap-2 flex-wrap">
+                                {pattern.cores_recomendadas.map((cor, i) => (
+                                  <div key={i} className="flex items-center gap-2 bg-slate-800 rounded-lg px-2 py-1">
+                                    <div
+                                      className="w-4 h-4 rounded-full border border-white/20"
+                                      style={{
+                                        backgroundColor: cor.startsWith('#') ? cor : cor.toLowerCase()
+                                      }}
+                                    />
+                                    <span className="text-xs text-gray-300">{cor}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+                            <p className="text-sm text-purple-300">
+                              <strong>Dica:</strong> {pattern.dica_pratica}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </motion.div>
                   ))}
@@ -341,7 +576,7 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold mb-6">Ideias de Vídeos com Alto Potencial Viral</h2>
                 <div className="grid md:grid-cols-2 gap-4">
-                  {data.ideias_videos_virais.map((idea, idx) => (
+                  {data.ideias_videos_virais?.map((idea, idx) => (
                     <motion.div
                       key={idx}
                       initial={{ opacity: 0, scale: 0.95 }}
@@ -378,7 +613,7 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold mb-6">Calendário de Conteúdo - 7 Dias</h2>
                 <div className="space-y-3">
-                  {data.calendario_conteudo.map((day, idx) => (
+                  {data.calendario_conteudo?.map((day, idx) => (
                     <motion.div
                       key={idx}
                       initial={{ opacity: 0, x: -20 }}
@@ -422,7 +657,7 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
               <div className="space-y-4">
                 <h2 className="text-2xl font-bold mb-6">Micro-nichos Promissores</h2>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {data.micro_nichos_promissores.map((niche, idx) => (
+                  {data.micro_nichos_promissores?.map((niche, idx) => (
                     <motion.div
                       key={idx}
                       initial={{ opacity: 0, scale: 0.9 }}
@@ -462,19 +697,19 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
                     <div>
                       <p className="text-sm text-emerald-400 uppercase tracking-wider mb-2">Caminho Mais Promissor</p>
                       <p className="text-lg font-semibold text-white">
-                        {data.conclusao_estrategica.caminho_mais_promissor}
+                        {data.conclusao_estrategica?.caminho_mais_promissor}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-blue-400 uppercase tracking-wider mb-2">Onde Focar</p>
                       <p className="text-lg font-semibold text-white">
-                        {data.conclusao_estrategica.onde_focar}
+                        {data.conclusao_estrategica?.onde_focar}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-purple-400 uppercase tracking-wider mb-2">Formato para Testar Primeiro</p>
                       <p className="text-lg font-semibold text-white">
-                        {data.conclusao_estrategica.formato_para_testar_primeiro}
+                        {data.conclusao_estrategica?.formato_para_testar_primeiro}
                       </p>
                     </div>
                   </div>
@@ -486,7 +721,7 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
                     Próximos Passos
                   </h3>
                   <ul className="space-y-3">
-                    {data.conclusao_estrategica.proximos_passos.map((step, idx) => (
+                    {data.conclusao_estrategica?.proximos_passos?.map((step, idx) => (
                       <li key={idx} className="flex items-start gap-3">
                         <span className="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 flex items-center justify-center text-xs font-bold">
                           {idx + 1}

@@ -5,11 +5,10 @@ Você é um Agente Especialista em Tendências Virais do YouTube.
 Sua função é analisar dados REAIS do YouTube que serão fornecidos abaixo, identificando padrões, oportunidades e tendências.
 
 VOCÊ RECEBERÁ DADOS REAIS DO YOUTUBE incluindo:
-- Vídeos em trending
-- Estatísticas reais (views, likes, comentários)
+- Vídeos em trending com estatísticas reais
+- Tags/hashtags mais usadas nos vídeos de sucesso
+- Dados de canais principais (inscritos, views, performance)
 - Títulos que estão funcionando
-- Tags populares
-- Informações de canais
 
 Sua tarefa é analisar esses dados e extrair insights acionáveis.
 
@@ -17,6 +16,8 @@ REGRAS IMPORTANTES:
 - Use os dados REAIS fornecidos como base da sua análise
 - Identifique padrões nos títulos dos vídeos em alta
 - Analise as estatísticas para identificar o que está funcionando
+- Extraia as hashtags/tags mais relevantes dos dados
+- Analise a performance dos canais principais
 - Não invente dados - use apenas o que foi fornecido
 - Gere insights baseados em evidências reais
 
@@ -24,7 +25,6 @@ Responda SEMPRE em JSON VÁLIDO seguindo a estrutura solicitada.
 `;
 
 export default async function handler(req, res) {
-  // Enable CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -55,29 +55,70 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'YouTube API Key nao fornecida.' });
     }
 
-    // Fetch real YouTube data based on input type
-    let youtubeData = {};
+    // Fetch real YouTube data
+    let youtubeData = {
+      trending: [],
+      searchResults: [],
+      channels: [],
+      allTags: []
+    };
     const regionCode = input.language === 'en' ? 'US' : 'BR';
 
     try {
-      // Always get trending videos
+      // Get trending videos
       youtubeData.trending = await fetchTrendingVideos(ytApiKey, regionCode);
 
+      // Collect tags from trending
+      youtubeData.trending.forEach(video => {
+        if (video.tags) {
+          youtubeData.allTags.push(...video.tags);
+        }
+      });
+
       // Get search results based on type
-      if (input.type === 'niche' || input.type === 'keyword') {
+      if (input.type === 'niche' || input.type === 'keyword' || input.type === 'trend') {
         youtubeData.searchResults = await searchVideos(ytApiKey, input.value, regionCode);
+
+        // Collect tags from search results
+        youtubeData.searchResults.forEach(video => {
+          if (video.tags) {
+            youtubeData.allTags.push(...video.tags);
+          }
+        });
+
+        // Get top channels from search results
+        const uniqueChannels = [...new Set(youtubeData.searchResults.map(v => v.channelId))].slice(0, 5);
+        for (const channelId of uniqueChannels) {
+          if (channelId) {
+            const channelData = await getChannelById(ytApiKey, channelId);
+            if (channelData) {
+              youtubeData.channels.push(channelData);
+            }
+          }
+        }
       } else if (input.type === 'channel') {
-        youtubeData.channel = await searchChannel(ytApiKey, input.value);
-      } else if (input.type === 'trend') {
-        youtubeData.searchResults = await searchVideos(ytApiKey, input.value, regionCode);
+        const channelData = await searchChannel(ytApiKey, input.value);
+        if (channelData) {
+          youtubeData.channels.push(channelData);
+        }
       }
     } catch (ytError) {
       console.error('YouTube API error:', ytError);
-      // Continue with partial data if YouTube API fails
     }
 
+    // Process tags to get most common hashtags
+    const tagCounts = {};
+    youtubeData.allTags.forEach(tag => {
+      const normalizedTag = tag.toLowerCase().trim();
+      tagCounts[normalizedTag] = (tagCounts[normalizedTag] || 0) + 1;
+    });
+    const topTags = Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 20)
+      .map(([tag, count]) => ({ tag, count }));
+
     // Build context from YouTube data
-    const youtubeContext = buildYouTubeContext(youtubeData, input);
+    const youtubeContext = buildYouTubeContext(youtubeData, input, topTags);
 
     const typeDescriptions = {
       niche: `Analise o nicho "${input.value}" no YouTube.`,
@@ -107,6 +148,24 @@ export default async function handler(req, res) {
           "media_views": number,
           "video_mais_visto": "string"
         },
+        "canais_analisados": [
+          {
+            "nome": "string (nome real do canal dos dados)",
+            "inscritos": "string (ex: 1.5M)",
+            "total_views": "string (ex: 500M)",
+            "media_views_recentes": "string (ex: 100K)",
+            "videos_analisados": number,
+            "melhor_video": "string (título real)",
+            "melhor_video_views": "string (ex: 2M)"
+          }
+        ],
+        "hashtags_recomendadas": [
+          {
+            "hashtag": "string (com # na frente, baseado nas tags reais)",
+            "relevancia": "alta|media|baixa",
+            "uso_recomendado": "string (quando/como usar)"
+          }
+        ],
         "oportunidades_tendencia": [
           {
             "titulo": "string",
@@ -140,7 +199,9 @@ export default async function handler(req, res) {
           {
             "elemento": "string",
             "descricao": "string",
-            "dica_pratica": "string"
+            "dica_pratica": "string",
+            "exemplo_visual": "string (descrição detalhada de como deve ser a thumbnail)",
+            "cores_recomendadas": ["string (cores em hex ou nome)"]
           }
         ],
         "ideias_videos_virais": [
@@ -178,13 +239,15 @@ export default async function handler(req, res) {
 
       IMPORTANTE:
       - Use os dados REAIS do YouTube na sua análise
-      - Cite exemplos reais de títulos e vídeos quando possível
+      - Analise os canais reais com suas estatísticas verdadeiras
+      - Gere hashtags baseadas nas tags reais mais usadas nos vídeos
+      - Para thumbnails, descreva visualmente como devem ser e sugira cores específicas
       - Gere pelo menos 5 oportunidades de tendência
-      - Gere pelo menos 4 formatos funcionando
-      - Gere pelo menos 5 títulos virais prontos
+      - Gere pelo menos 10-15 hashtags recomendadas
+      - Analise pelo menos 3-5 canais se disponíveis
+      - Gere pelo menos 5 padrões de thumbnail com descrição visual detalhada
       - Gere pelo menos 8 ideias de vídeos
       - O calendário deve ter exatamente 7 dias
-      - Gere pelo menos 4 micro-nichos
     `;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -213,11 +276,12 @@ export default async function handler(req, res) {
     const text = result.choices[0]?.message?.content;
     const data = JSON.parse(text);
 
-    // Include raw YouTube data in response for reference
+    // Include raw YouTube data in response
     data.youtube_raw_data = {
       trending_count: youtubeData.trending?.length || 0,
       search_results_count: youtubeData.searchResults?.length || 0,
-      channel_found: !!youtubeData.channel
+      channels_count: youtubeData.channels?.length || 0,
+      tags_collected: topTags.length
     };
 
     return res.status(200).json(data);
@@ -229,7 +293,7 @@ export default async function handler(req, res) {
 }
 
 // Build context string from YouTube data
-function buildYouTubeContext(data, input) {
+function buildYouTubeContext(data, input, topTags) {
   let context = '';
 
   if (data.trending && data.trending.length > 0) {
@@ -238,7 +302,7 @@ function buildYouTubeContext(data, input) {
       context += `${i + 1}. "${video.title}" - Canal: ${video.channelTitle}\n`;
       context += `   Views: ${formatNumber(video.viewCount)} | Likes: ${formatNumber(video.likeCount)} | Comentários: ${formatNumber(video.commentCount)}\n`;
       if (video.tags && video.tags.length > 0) {
-        context += `   Tags: ${video.tags.join(', ')}\n`;
+        context += `   Tags: ${video.tags.slice(0, 5).join(', ')}\n`;
       }
     });
   }
@@ -254,17 +318,25 @@ function buildYouTubeContext(data, input) {
     });
   }
 
-  if (data.channel) {
-    context += `\n## DADOS DO CANAL "${data.channel.title}":\n`;
-    context += `Inscritos: ${formatNumber(data.channel.subscriberCount)}\n`;
-    context += `Total de vídeos: ${data.channel.videoCount}\n`;
-    context += `Total de views: ${formatNumber(data.channel.viewCount)}\n`;
-    if (data.channel.recentVideos && data.channel.recentVideos.length > 0) {
-      context += `\nÚltimos vídeos do canal:\n`;
-      data.channel.recentVideos.forEach((video, i) => {
-        context += `  ${i + 1}. "${video.title}" - ${formatNumber(video.viewCount)} views\n`;
-      });
-    }
+  if (data.channels && data.channels.length > 0) {
+    context += `\n## CANAIS PRINCIPAIS ANALISADOS (${data.channels.length} canais):\n`;
+    data.channels.forEach((channel, i) => {
+      context += `${i + 1}. ${channel.title}\n`;
+      context += `   Inscritos: ${formatNumber(channel.subscriberCount)} | Total Views: ${formatNumber(channel.viewCount)} | Vídeos: ${channel.videoCount}\n`;
+      if (channel.recentVideos && channel.recentVideos.length > 0) {
+        const avgViews = channel.recentVideos.reduce((sum, v) => sum + v.viewCount, 0) / channel.recentVideos.length;
+        const bestVideo = channel.recentVideos.reduce((best, v) => v.viewCount > best.viewCount ? v : best, channel.recentVideos[0]);
+        context += `   Média de views recentes: ${formatNumber(avgViews)}\n`;
+        context += `   Melhor vídeo recente: "${bestVideo.title}" (${formatNumber(bestVideo.viewCount)} views)\n`;
+      }
+    });
+  }
+
+  if (topTags && topTags.length > 0) {
+    context += `\n## TAGS/HASHTAGS MAIS USADAS (${topTags.length} tags):\n`;
+    topTags.forEach((item, i) => {
+      context += `${i + 1}. #${item.tag} (usado ${item.count}x)\n`;
+    });
   }
 
   if (!context) {
@@ -277,7 +349,7 @@ function buildYouTubeContext(data, input) {
 function formatNumber(num) {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
   if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-  return num.toString();
+  return num?.toString() || '0';
 }
 
 // YouTube API Functions
@@ -296,7 +368,8 @@ async function fetchTrendingVideos(apiKey, regionCode) {
     id: video.id,
     title: video.snippet?.title,
     channelTitle: video.snippet?.channelTitle,
-    tags: video.snippet?.tags?.slice(0, 10) || [],
+    channelId: video.snippet?.channelId,
+    tags: video.snippet?.tags?.slice(0, 15) || [],
     viewCount: parseInt(video.statistics?.viewCount || 0),
     likeCount: parseInt(video.statistics?.likeCount || 0),
     commentCount: parseInt(video.statistics?.commentCount || 0)
@@ -327,24 +400,15 @@ async function searchVideos(apiKey, query, regionCode) {
     id: video.id,
     title: video.snippet?.title,
     channelTitle: video.snippet?.channelTitle,
-    tags: video.snippet?.tags?.slice(0, 10) || [],
+    channelId: video.snippet?.channelId,
+    tags: video.snippet?.tags?.slice(0, 15) || [],
     viewCount: parseInt(video.statistics?.viewCount || 0),
     likeCount: parseInt(video.statistics?.likeCount || 0),
     commentCount: parseInt(video.statistics?.commentCount || 0)
   })) || [];
 }
 
-async function searchChannel(apiKey, query) {
-  const searchUrl = `${YOUTUBE_API_BASE}/search?part=snippet&q=${encodeURIComponent(query)}&type=channel&maxResults=1&key=${apiKey}`;
-
-  const searchResponse = await fetch(searchUrl);
-  if (!searchResponse.ok) return null;
-
-  const searchData = await searchResponse.json();
-  const channelId = searchData.items?.[0]?.id?.channelId;
-
-  if (!channelId) return null;
-
+async function getChannelById(apiKey, channelId) {
   const channelUrl = `${YOUTUBE_API_BASE}/channels?part=snippet,statistics&id=${channelId}&key=${apiKey}`;
   const channelResponse = await fetch(channelUrl);
   if (!channelResponse.ok) return null;
@@ -373,10 +437,25 @@ async function searchChannel(apiKey, query) {
   }
 
   return {
+    id: channel.id,
     title: channel.snippet?.title,
     subscriberCount: parseInt(channel.statistics?.subscriberCount || 0),
     videoCount: parseInt(channel.statistics?.videoCount || 0),
     viewCount: parseInt(channel.statistics?.viewCount || 0),
     recentVideos
   };
+}
+
+async function searchChannel(apiKey, query) {
+  const searchUrl = `${YOUTUBE_API_BASE}/search?part=snippet&q=${encodeURIComponent(query)}&type=channel&maxResults=1&key=${apiKey}`;
+
+  const searchResponse = await fetch(searchUrl);
+  if (!searchResponse.ok) return null;
+
+  const searchData = await searchResponse.json();
+  const channelId = searchData.items?.[0]?.id?.channelId;
+
+  if (!channelId) return null;
+
+  return getChannelById(apiKey, channelId);
 }

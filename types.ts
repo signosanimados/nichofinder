@@ -69,6 +69,24 @@ export interface ThumbnailPattern {
   elemento: string;
   descricao: string;
   dica_pratica: string;
+  exemplo_visual?: string;
+  cores_recomendadas?: string[];
+}
+
+export interface ChannelAnalysis {
+  nome: string;
+  inscritos: string;
+  total_views: string;
+  media_views_recentes: string;
+  videos_analisados: number;
+  melhor_video: string;
+  melhor_video_views: string;
+}
+
+export interface HashtagRecommendation {
+  hashtag: string;
+  relevancia: 'alta' | 'media' | 'baixa';
+  uso_recomendado: string;
 }
 
 export interface VideoIdea {
@@ -103,6 +121,13 @@ export interface StrategicConclusion {
 export interface ViralAnalysisResult {
   idioma_saida: string;
   resumo_executivo: string;
+  dados_youtube_analisados?: {
+    total_videos_analisados: number;
+    media_views: number;
+    video_mais_visto: string;
+  };
+  canais_analisados?: ChannelAnalysis[];
+  hashtags_recomendadas?: HashtagRecommendation[];
   oportunidades_tendencia: TrendOpportunity[];
   formatos_funcionando: ViralFormat[];
   padroes_titulos: TitlePattern[];
@@ -112,6 +137,11 @@ export interface ViralAnalysisResult {
   calendario_conteudo: ContentCalendarDay[];
   micro_nichos_promissores: MicroNiche[];
   conclusao_estrategica: StrategicConclusion;
+  youtube_raw_data?: {
+    trending_count: number;
+    search_results_count: number;
+    channel_found: boolean;
+  };
 }
 
 // ============ APP STATE ============
