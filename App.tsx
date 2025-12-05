@@ -20,9 +20,9 @@ import {
 import { History, Key } from 'lucide-react';
 
 const App: React.FC = () => {
-  // Check if API key exists on startup
+  // Check if API keys exist on startup
   const [appState, setAppState] = useState<AppState>(() => {
-    return apiService.hasApiKey() ? AppState.WELCOME : AppState.API_KEY_INPUT;
+    return apiService.hasApiKeys() ? AppState.WELCOME : AppState.API_KEY_INPUT;
   });
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
@@ -30,8 +30,8 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
 
-  const handleApiKeySubmit = (key: string) => {
-    apiService.setApiKey(key);
+  const handleApiKeySubmit = (openaiKey: string, youtubeKey: string) => {
+    apiService.setApiKeys(openaiKey, youtubeKey);
     setAppState(AppState.WELCOME);
   };
 

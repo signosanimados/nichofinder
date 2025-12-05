@@ -19,7 +19,8 @@ interface FullAnalysis {
 
 // Local storage keys
 const HISTORY_KEY = 'nichofinder_history';
-const API_KEY_STORAGE = 'nichofinder_api_key';
+const OPENAI_KEY_STORAGE = 'nichofinder_openai_key';
+const YOUTUBE_KEY_STORAGE = 'nichofinder_youtube_key';
 
 function getLocalHistory(): HistoryItem[] {
   try {
@@ -83,34 +84,62 @@ function generateUUID(): string {
 }
 
 class ApiService {
-  // API Key Management
-  getApiKey(): string | null {
+  // API Key Management - OpenAI
+  getOpenAIKey(): string | null {
     try {
-      return localStorage.getItem(API_KEY_STORAGE);
+      return localStorage.getItem(OPENAI_KEY_STORAGE);
     } catch {
       return null;
     }
   }
 
-  setApiKey(key: string): void {
+  setOpenAIKey(key: string): void {
     try {
-      localStorage.setItem(API_KEY_STORAGE, key);
+      localStorage.setItem(OPENAI_KEY_STORAGE, key);
     } catch (e) {
-      console.warn('Failed to save API key:', e);
+      console.warn('Failed to save OpenAI key:', e);
     }
   }
 
-  clearApiKey(): void {
+  // API Key Management - YouTube
+  getYouTubeKey(): string | null {
     try {
-      localStorage.removeItem(API_KEY_STORAGE);
-    } catch (e) {
-      console.warn('Failed to clear API key:', e);
+      return localStorage.getItem(YOUTUBE_KEY_STORAGE);
+    } catch {
+      return null;
     }
   }
 
-  hasApiKey(): boolean {
-    const key = this.getApiKey();
-    return key !== null && key.trim().length > 0;
+  setYouTubeKey(key: string): void {
+    try {
+      localStorage.setItem(YOUTUBE_KEY_STORAGE, key);
+    } catch (e) {
+      console.warn('Failed to save YouTube key:', e);
+    }
+  }
+
+  // Set both keys at once
+  setApiKeys(openaiKey: string, youtubeKey: string): void {
+    this.setOpenAIKey(openaiKey);
+    this.setYouTubeKey(youtubeKey);
+  }
+
+  clearApiKeys(): void {
+    try {
+      localStorage.removeItem(OPENAI_KEY_STORAGE);
+      localStorage.removeItem(YOUTUBE_KEY_STORAGE);
+    } catch (e) {
+      console.warn('Failed to clear API keys:', e);
+    }
+  }
+
+  hasApiKeys(): boolean {
+    const openaiKey = this.getOpenAIKey();
+    const youtubeKey = this.getYouTubeKey();
+    return (
+      openaiKey !== null && openaiKey.trim().length > 0 &&
+      youtubeKey !== null && youtubeKey.trim().length > 0
+    );
   }
 
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
@@ -137,9 +166,9 @@ class ApiService {
 
   // Nicho Finder Analysis
   async analyzeNiche(answers: UserAnswers): Promise<AnalysisResult & { analysisId?: string }> {
-    const apiKey = this.getApiKey();
+    const apiKey = this.getOpenAIKey();
     if (!apiKey) {
-      throw new Error('API Key nao configurada. Recarregue a pagina e configure sua chave.');
+      throw new Error('OpenAI API Key nao configurada. Recarregue a pagina e configure suas chaves.');
     }
 
     const result = await this.request<AnalysisResult>('/api/analyze-niche', {
@@ -163,14 +192,19 @@ class ApiService {
 
   // Viral Analyzer Analysis
   async analyzeViral(input: ViralAnalysisInput): Promise<ViralAnalysisResult & { analysisId?: string }> {
-    const apiKey = this.getApiKey();
+    const apiKey = this.getOpenAIKey();
+    const youtubeApiKey = this.getYouTubeKey();
+
     if (!apiKey) {
-      throw new Error('API Key nao configurada. Recarregue a pagina e configure sua chave.');
+      throw new Error('OpenAI API Key nao configurada. Recarregue a pagina e configure suas chaves.');
+    }
+    if (!youtubeApiKey) {
+      throw new Error('YouTube API Key nao configurada. Recarregue a pagina e configure suas chaves.');
     }
 
     const result = await this.request<ViralAnalysisResult>('/api/analyze-viral', {
       method: 'POST',
-      body: JSON.stringify({ input, apiKey }),
+      body: JSON.stringify({ input, apiKey, youtubeApiKey }),
     });
 
     // Save to local history
