@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Hero from './components/Hero';
 import StepWizard from './components/StepWizard';
 import Loading from './components/Loading';
@@ -24,21 +24,7 @@ const App: React.FC = () => {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [viralResult, setViralResult] = useState<ViralAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [backendAvailable, setBackendAvailable] = useState<boolean | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
-
-  // Check if backend is available
-  useEffect(() => {
-    const checkBackend = async () => {
-      try {
-        await apiService.healthCheck();
-        setBackendAvailable(true);
-      } catch {
-        setBackendAvailable(false);
-      }
-    };
-    checkBackend();
-  }, []);
 
   const handleStart = () => {
     setAppState(AppState.MODE_SELECT);
@@ -101,47 +87,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Show backend status warning if not available
-  if (backendAvailable === false) {
-    return (
-      <div className="antialiased text-slate-50 bg-slate-900 min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-md text-center">
-          <div className="p-4 rounded-full bg-yellow-500/10 mb-4 inline-block">
-            <svg className="w-12 h-12 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-          </div>
-          <h2 className="text-2xl font-bold text-white mb-2">Backend não disponível</h2>
-          <p className="text-gray-400 mb-6">
-            O servidor backend não está rodando. Por favor, inicie o servidor:
-          </p>
-          <div className="bg-slate-800 rounded-lg p-4 text-left font-mono text-sm text-gray-300 mb-6">
-            <p>cd server</p>
-            <p>npm install</p>
-            <p>cp .env.example .env</p>
-            <p># Edite .env com suas API keys</p>
-            <p>npm run dev</p>
-          </div>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-white font-medium transition-colors"
-          >
-            Tentar Novamente
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Loading state while checking backend
-  if (backendAvailable === null) {
-    return (
-      <div className="antialiased text-slate-50 bg-slate-900 min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full" />
-      </div>
-    );
-  }
-
   return (
     <div className="antialiased text-slate-50 bg-slate-900 min-h-screen">
       {/* History Button - Fixed */}
@@ -149,7 +94,7 @@ const App: React.FC = () => {
         <button
           onClick={() => setHistoryOpen(true)}
           className="fixed bottom-6 right-6 p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full shadow-lg z-40 transition-colors"
-          title="Histórico de análises"
+          title="Historico de analises"
         >
           <History className="w-6 h-6 text-purple-400" />
         </button>
@@ -198,7 +143,7 @@ const App: React.FC = () => {
             </svg>
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">Ops! Algo deu errado.</h2>
-          <p className="text-gray-400 mb-6 max-w-md">{error || "Não conseguimos gerar sua análise. Verifique sua chave de API ou tente novamente."}</p>
+          <p className="text-gray-400 mb-6 max-w-md">{error || "Nao conseguimos gerar sua analise. Verifique se a API key esta configurada corretamente."}</p>
           <button
             onClick={handleReset}
             className="px-6 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-white font-medium transition-colors"
