@@ -1,0 +1,19 @@
+{
+  "name": "nichofinder-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "better-sqlite3": "^11.6.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "googleapis": "^144.0.0",
+    "pdfkit": "^0.15.1",
+    "uuid": "^11.0.3"
+  }
+}

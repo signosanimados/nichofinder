@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AnalysisResult, NicheSuggestion } from '../types';
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Play, 
-  Box, 
-  ChevronRight, 
+import {
+  TrendingUp,
+  DollarSign,
+  Play,
+  Box,
+  ChevronRight,
   Award,
   BarChart3,
-  Users
+  Users,
+  Download,
+  Loader2
 } from 'lucide-react';
+import { apiService } from '../services/apiService';
 
 interface ResultsDashboardProps {
   data: AnalysisResult;
@@ -19,6 +22,18 @@ interface ResultsDashboardProps {
 
 const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ data, onReset }) => {
   const [selectedNicheIndex, setSelectedNicheIndex] = useState<number>(0);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    setDownloading(true);
+    try {
+      await apiService.downloadPDF('nicho_finder', data);
+    } catch (error) {
+      console.error('Failed to download PDF:', error);
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -49,9 +64,23 @@ const ResultsDashboard: React.FC<ResultsDashboardProps> = ({ data, onReset }) =>
              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-400">
                Seu Relatório Nicho Finder
              </h1>
-             <button onClick={onReset} className="text-sm text-gray-500 hover:text-white underline">
-               Começar de novo
-             </button>
+             <div className="flex items-center gap-3">
+               <button
+                 onClick={handleDownloadPDF}
+                 disabled={downloading}
+                 className="flex items-center gap-2 px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-lg text-purple-400 text-sm font-medium transition-colors disabled:opacity-50"
+               >
+                 {downloading ? (
+                   <Loader2 className="w-4 h-4 animate-spin" />
+                 ) : (
+                   <Download className="w-4 h-4" />
+                 )}
+                 Exportar PDF
+               </button>
+               <button onClick={onReset} className="text-sm text-gray-500 hover:text-white underline">
+                 Começar de novo
+               </button>
+             </div>
            </div>
            
            <div className="bg-slate-900/50 border border-slate-800 p-6 rounded-2xl">

@@ -14,9 +14,12 @@ import {
   Flame,
   Clock,
   Copy,
-  Check
+  Check,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { ViralAnalysisResult } from '../types';
+import { apiService } from '../services/apiService';
 
 interface ViralResultsDashboardProps {
   data: ViralAnalysisResult;
@@ -40,11 +43,23 @@ const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
 const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onReset }) => {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [copiedTitle, setCopiedTitle] = useState<number | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const copyToClipboard = (text: string, index: number) => {
     navigator.clipboard.writeText(text);
     setCopiedTitle(index);
     setTimeout(() => setCopiedTitle(null), 2000);
+  };
+
+  const handleDownloadPDF = async () => {
+    setDownloading(true);
+    try {
+      await apiService.downloadPDF('viral_analyzer', data);
+    } catch (error) {
+      console.error('Failed to download PDF:', error);
+    } finally {
+      setDownloading(false);
+    }
   };
 
   const urgencyColors = {
@@ -82,12 +97,26 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
                 <p className="text-sm text-gray-400">Relatório completo gerado por IA</p>
               </div>
             </div>
-            <button
-              onClick={onReset}
-              className="text-sm text-gray-400 hover:text-white underline"
-            >
-              Nova análise
-            </button>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleDownloadPDF}
+                disabled={downloading}
+                className="flex items-center gap-2 px-4 py-2 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-500/30 rounded-lg text-orange-400 text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {downloading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Exportar PDF
+              </button>
+              <button
+                onClick={onReset}
+                className="text-sm text-gray-400 hover:text-white underline"
+              >
+                Nova análise
+              </button>
+            </div>
           </div>
         </div>
 
