@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Hero from './components/Hero';
 import StepWizard from './components/StepWizard';
 import Loading from './components/Loading';
@@ -7,6 +7,7 @@ import ModeSelector from './components/ModeSelector';
 import ViralInput from './components/ViralInput';
 import ViralResultsDashboard from './components/ViralResultsDashboard';
 import AnalysisHistory from './components/AnalysisHistory';
+import ApiKeyInput from './components/ApiKeyInput';
 import { apiService } from './services/apiService';
 import {
   AppState,
@@ -16,15 +17,27 @@ import {
   ViralAnalysisInput,
   ViralAnalysisResult
 } from './types';
-import { History } from 'lucide-react';
+import { History, Key } from 'lucide-react';
 
 const App: React.FC = () => {
-  const [appState, setAppState] = useState<AppState>(AppState.WELCOME);
+  // Check if API key exists on startup
+  const [appState, setAppState] = useState<AppState>(() => {
+    return apiService.hasApiKey() ? AppState.WELCOME : AppState.API_KEY_INPUT;
+  });
   const [analysisMode, setAnalysisMode] = useState<AnalysisMode | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [viralResult, setViralResult] = useState<ViralAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  const handleApiKeySubmit = (key: string) => {
+    apiService.setApiKey(key);
+    setAppState(AppState.WELCOME);
+  };
+
+  const handleChangeApiKey = () => {
+    setAppState(AppState.API_KEY_INPUT);
+  };
 
   const handleStart = () => {
     setAppState(AppState.MODE_SELECT);
@@ -89,15 +102,27 @@ const App: React.FC = () => {
 
   return (
     <div className="antialiased text-slate-50 bg-slate-900 min-h-screen">
-      {/* History Button - Fixed */}
-      {appState !== AppState.LOADING && (
-        <button
-          onClick={() => setHistoryOpen(true)}
-          className="fixed bottom-6 right-6 p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full shadow-lg z-40 transition-colors"
-          title="Historico de analises"
-        >
-          <History className="w-6 h-6 text-purple-400" />
-        </button>
+      {/* Fixed Buttons */}
+      {appState !== AppState.LOADING && appState !== AppState.API_KEY_INPUT && (
+        <>
+          {/* History Button */}
+          <button
+            onClick={() => setHistoryOpen(true)}
+            className="fixed bottom-6 right-6 p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full shadow-lg z-40 transition-colors"
+            title="Historico de analises"
+          >
+            <History className="w-6 h-6 text-purple-400" />
+          </button>
+
+          {/* Change API Key Button */}
+          <button
+            onClick={handleChangeApiKey}
+            className="fixed bottom-6 right-24 p-4 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-full shadow-lg z-40 transition-colors"
+            title="Alterar API Key"
+          >
+            <Key className="w-6 h-6 text-blue-400" />
+          </button>
+        </>
       )}
 
       {/* History Modal */}
@@ -106,6 +131,10 @@ const App: React.FC = () => {
         onClose={() => setHistoryOpen(false)}
         onSelectAnalysis={handleSelectFromHistory}
       />
+
+      {appState === AppState.API_KEY_INPUT && (
+        <ApiKeyInput onSubmit={handleApiKeySubmit} />
+      )}
 
       {appState === AppState.WELCOME && (
         <Hero onStart={handleStart} />

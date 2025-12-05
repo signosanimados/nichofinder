@@ -34,15 +34,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { answers } = req.body;
+    const { answers, apiKey: userApiKey } = req.body;
 
     if (!answers || !answers.passion || !answers.skill || !answers.market || !answers.monetization) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY;
+    // Use API key from request body first, fallback to environment variable
+    const apiKey = userApiKey || process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });
+      return res.status(400).json({ error: 'API Key nao fornecida. Configure sua chave do Google Gemini.' });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);

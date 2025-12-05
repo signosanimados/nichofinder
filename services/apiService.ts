@@ -17,8 +17,9 @@ interface FullAnalysis {
   created_at: string;
 }
 
-// Local storage for history
+// Local storage keys
 const HISTORY_KEY = 'nichofinder_history';
+const API_KEY_STORAGE = 'nichofinder_api_key';
 
 function getLocalHistory(): HistoryItem[] {
   try {
@@ -82,6 +83,36 @@ function generateUUID(): string {
 }
 
 class ApiService {
+  // API Key Management
+  getApiKey(): string | null {
+    try {
+      return localStorage.getItem(API_KEY_STORAGE);
+    } catch {
+      return null;
+    }
+  }
+
+  setApiKey(key: string): void {
+    try {
+      localStorage.setItem(API_KEY_STORAGE, key);
+    } catch (e) {
+      console.warn('Failed to save API key:', e);
+    }
+  }
+
+  clearApiKey(): void {
+    try {
+      localStorage.removeItem(API_KEY_STORAGE);
+    } catch (e) {
+      console.warn('Failed to clear API key:', e);
+    }
+  }
+
+  hasApiKey(): boolean {
+    const key = this.getApiKey();
+    return key !== null && key.trim().length > 0;
+  }
+
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const response = await fetch(endpoint, {
       ...options,
@@ -106,9 +137,14 @@ class ApiService {
 
   // Nicho Finder Analysis
   async analyzeNiche(answers: UserAnswers): Promise<AnalysisResult & { analysisId?: string }> {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('API Key nao configurada. Recarregue a pagina e configure sua chave.');
+    }
+
     const result = await this.request<AnalysisResult>('/api/analyze-niche', {
       method: 'POST',
-      body: JSON.stringify({ answers }),
+      body: JSON.stringify({ answers, apiKey }),
     });
 
     // Save to local history
@@ -127,9 +163,14 @@ class ApiService {
 
   // Viral Analyzer Analysis
   async analyzeViral(input: ViralAnalysisInput): Promise<ViralAnalysisResult & { analysisId?: string }> {
+    const apiKey = this.getApiKey();
+    if (!apiKey) {
+      throw new Error('API Key nao configurada. Recarregue a pagina e configure sua chave.');
+    }
+
     const result = await this.request<ViralAnalysisResult>('/api/analyze-viral', {
       method: 'POST',
-      body: JSON.stringify({ input }),
+      body: JSON.stringify({ input, apiKey }),
     });
 
     // Save to local history
