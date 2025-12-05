@@ -1,10 +1,5 @@
 import { UserAnswers, AnalysisResult, ViralAnalysisInput, ViralAnalysisResult } from '../types';
 
-// In Vercel, API routes are at /api/*, no base URL needed
-// Locally with the Express server, it's at http://localhost:3001/api/*
-const isVercel = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
-const API_BASE_URL = isVercel ? '' : (import.meta.env.VITE_API_URL || 'http://localhost:3001');
-
 interface HistoryItem {
   id: string;
   type: 'nicho_finder' | 'viral_analyzer';
@@ -16,13 +11,13 @@ interface FullAnalysis {
   id: string;
   type: string;
   title: string;
-  input: any;
-  result: any;
-  youtube_data?: any;
+  input: unknown;
+  result: unknown;
+  youtube_data?: unknown;
   created_at: string;
 }
 
-// Local storage for history (since Vercel serverless is stateless)
+// Local storage for history
 const HISTORY_KEY = 'nichofinder_history';
 
 function getLocalHistory(): HistoryItem[] {
@@ -34,7 +29,7 @@ function getLocalHistory(): HistoryItem[] {
   }
 }
 
-function saveToLocalHistory(item: HistoryItem & { result: any; input: any }) {
+function saveToLocalHistory(item: HistoryItem & { result: unknown; input: unknown }) {
   try {
     const history = getLocalHistory();
     const fullHistory = JSON.parse(localStorage.getItem(HISTORY_KEY + '_full') || '[]');
@@ -78,11 +73,17 @@ function deleteFromLocalHistory(id: string) {
   }
 }
 
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
+
 class ApiService {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`;
-
-    const response = await fetch(url, {
+    const response = await fetch(endpoint, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -105,18 +106,17 @@ class ApiService {
 
   // Nicho Finder Analysis
   async analyzeNiche(answers: UserAnswers): Promise<AnalysisResult & { analysisId?: string }> {
-    // Use Vercel endpoint format
     const result = await this.request<AnalysisResult>('/api/analyze-niche', {
       method: 'POST',
       body: JSON.stringify({ answers }),
     });
 
     // Save to local history
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     saveToLocalHistory({
       id,
       type: 'nicho_finder',
-      title: `Nicho: ${result.nicho_nicho_finder_principal?.nome_do_nicho || 'Análise'}`,
+      title: `Nicho: ${result.nicho_nicho_finder_principal?.nome_do_nicho || 'Analise'}`,
       created_at: new Date().toISOString(),
       result,
       input: answers
@@ -127,18 +127,17 @@ class ApiService {
 
   // Viral Analyzer Analysis
   async analyzeViral(input: ViralAnalysisInput): Promise<ViralAnalysisResult & { analysisId?: string }> {
-    // Use Vercel endpoint format
     const result = await this.request<ViralAnalysisResult>('/api/analyze-viral', {
       method: 'POST',
       body: JSON.stringify({ input }),
     });
 
     // Save to local history
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     saveToLocalHistory({
       id,
       type: 'viral_analyzer',
-      title: `Viral: ${input.value || 'Tendências Atuais'}`,
+      title: `Viral: ${input.value || 'Tendencias Atuais'}`,
       created_at: new Date().toISOString(),
       result,
       input
@@ -168,11 +167,9 @@ class ApiService {
   }
 
   // PDF Export - Generate in browser
-  async downloadPDF(type: 'nicho_finder' | 'viral_analyzer', data: any, filename?: string): Promise<void> {
-    // Create a printable version
+  async downloadPDF(type: 'nicho_finder' | 'viral_analyzer', data: AnalysisResult | ViralAnalysisResult): Promise<void> {
     const printContent = this.generatePrintableHTML(type, data);
 
-    // Open in new window and print
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(printContent);
@@ -183,11 +180,12 @@ class ApiService {
     }
   }
 
-  private generatePrintableHTML(type: string, data: any): string {
-    const title = type === 'viral_analyzer' ? 'Análise de Tendências Virais' : 'Relatório Nicho Finder';
+  private generatePrintableHTML(type: string, data: AnalysisResult | ViralAnalysisResult): string {
+    const title = type === 'viral_analyzer' ? 'Analise de Tendencias Virais' : 'Relatorio Nicho Finder';
     const date = new Date().toLocaleDateString('pt-BR');
 
     if (type === 'viral_analyzer') {
+      const viralData = data as ViralAnalysisResult;
       return `
         <!DOCTYPE html>
         <html>
@@ -218,12 +216,12 @@ class ApiService {
 
           <div class="section">
             <h2>Resumo Executivo</h2>
-            <p>${data.resumo_executivo || ''}</p>
+            <p>${viralData.resumo_executivo || ''}</p>
           </div>
 
           <div class="section">
-            <h2>Oportunidades de Tendência</h2>
-            ${(data.oportunidades_tendencia || []).map((o: any) => `
+            <h2>Oportunidades de Tendencia</h2>
+            ${(viralData.oportunidades_tendencia || []).map((o) => `
               <div class="item">
                 <strong>${o.titulo}</strong>
                 <span class="badge ${o.urgencia}">${o.urgencia}</span>
@@ -234,8 +232,8 @@ class ApiService {
           </div>
 
           <div class="section">
-            <h2>Títulos Virais Prontos</h2>
-            ${(data.titulos_virais_prontos || []).map((t: any, i: number) => `
+            <h2>Titulos Virais Prontos</h2>
+            ${(viralData.titulos_virais_prontos || []).map((t, i) => `
               <div class="item">
                 <strong>${i + 1}. "${t.titulo}"</strong>
                 <p>${t.por_que_funciona}</p>
@@ -244,8 +242,8 @@ class ApiService {
           </div>
 
           <div class="section">
-            <h2>Ideias de Vídeos</h2>
-            ${(data.ideias_videos_virais || []).map((v: any, i: number) => `
+            <h2>Ideias de Videos</h2>
+            ${(viralData.ideias_videos_virais || []).map((v, i) => `
               <div class="item">
                 <strong>${i + 1}. ${v.titulo}</strong>
                 <p>${v.descricao_curta}</p>
@@ -255,9 +253,9 @@ class ApiService {
           </div>
 
           <div class="section">
-            <h2>Calendário de 7 Dias</h2>
+            <h2>Calendario de 7 Dias</h2>
             <div class="calendar">
-              ${(data.calendario_conteudo || []).map((d: any) => `
+              ${(viralData.calendario_conteudo || []).map((d) => `
                 <div class="day">
                   <span class="day-num">Dia ${d.dia}</span>: ${d.tema}
                   <br><small>Formato: ${d.formato}</small>
@@ -268,19 +266,20 @@ class ApiService {
           </div>
 
           <div class="section">
-            <h2>Conclusão Estratégica</h2>
-            <p><strong>Caminho mais promissor:</strong> ${data.conclusao_estrategica?.caminho_mais_promissor || ''}</p>
-            <p><strong>Onde focar:</strong> ${data.conclusao_estrategica?.onde_focar || ''}</p>
-            <p><strong>Formato para testar:</strong> ${data.conclusao_estrategica?.formato_para_testar_primeiro || ''}</p>
-            <h3>Próximos Passos</h3>
+            <h2>Conclusao Estrategica</h2>
+            <p><strong>Caminho mais promissor:</strong> ${viralData.conclusao_estrategica?.caminho_mais_promissor || ''}</p>
+            <p><strong>Onde focar:</strong> ${viralData.conclusao_estrategica?.onde_focar || ''}</p>
+            <p><strong>Formato para testar:</strong> ${viralData.conclusao_estrategica?.formato_para_testar_primeiro || ''}</p>
+            <h3>Proximos Passos</h3>
             <ul>
-              ${(data.conclusao_estrategica?.proximos_passos || []).map((p: string) => `<li>${p}</li>`).join('')}
+              ${(viralData.conclusao_estrategica?.proximos_passos || []).map((p) => `<li>${p}</li>`).join('')}
             </ul>
           </div>
         </body>
         </html>
       `;
     } else {
+      const nichoData = data as AnalysisResult;
       return `
         <!DOCTYPE html>
         <html>
@@ -304,33 +303,33 @@ class ApiService {
 
           <div class="section">
             <h2>Resumo do Perfil</h2>
-            <p>${data.resumo_perfil || ''}</p>
+            <p>${nichoData.resumo_perfil || ''}</p>
           </div>
 
           <div class="section">
             <h2>Nicho Principal Recomendado</h2>
             <div class="item winner">
-              <h3>${data.nicho_nicho_finder_principal?.nome_do_nicho || ''}</h3>
-              <p>${data.nicho_nicho_finder_principal?.explicacao || ''}</p>
+              <h3>${nichoData.nicho_nicho_finder_principal?.nome_do_nicho || ''}</h3>
+              <p>${nichoData.nicho_nicho_finder_principal?.explicacao || ''}</p>
               <h4>Plano de 7 Dias</h4>
               <ul>
-                ${(data.nicho_nicho_finder_principal?.plano_de_acao_7_dias || []).map((p: string, i: number) => `<li><strong>Dia ${i + 1}:</strong> ${p}</li>`).join('')}
+                ${(nichoData.nicho_nicho_finder_principal?.plano_de_acao_7_dias || []).map((p, i) => `<li><strong>Dia ${i + 1}:</strong> ${p}</li>`).join('')}
               </ul>
             </div>
           </div>
 
           <div class="section">
             <h2>Outros Nichos Sugeridos</h2>
-            ${(data.nichos_sugeridos || []).map((n: any) => `
+            ${(nichoData.nichos_sugeridos || []).map((n) => `
               <div class="item">
                 <h3>${n.nome_do_nicho}</h3>
                 <p>${n.descricao_do_nicho}</p>
                 <p><strong>Por que combina:</strong> ${n.por_que_enquadra_no_perfil}</p>
-                <p><strong>Público:</strong> ${n.publico_alvo_detalhado}</p>
-                <p><em>Dificuldade: ${n.dificuldade_de_crescimento} | Monetização: ${n.potencial_de_monetizacao}</em></p>
-                <h4>Ideias de Vídeo</h4>
+                <p><strong>Publico:</strong> ${n.publico_alvo_detalhado}</p>
+                <p><em>Dificuldade: ${n.dificuldade_de_crescimento} | Monetizacao: ${n.potencial_de_monetizacao}</em></p>
+                <h4>Ideias de Video</h4>
                 <ul>
-                  ${(n.ideias_de_video_iniciais || []).slice(0, 5).map((v: string) => `<li>${v}</li>`).join('')}
+                  ${(n.ideias_de_video_iniciais || []).slice(0, 5).map((v) => `<li>${v}</li>`).join('')}
                 </ul>
               </div>
             `).join('')}
