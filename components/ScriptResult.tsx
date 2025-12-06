@@ -15,7 +15,10 @@ import {
   Zap,
   MessageSquare,
   Sparkles,
-  Target
+  Target,
+  Copy,
+  Check,
+  FileText
 } from 'lucide-react';
 import { ScriptResult as ScriptResultType } from '../types';
 import { apiService } from '../services/apiService';
@@ -43,6 +46,7 @@ const visualTypeIcons: Record<string, React.ReactNode> = {
 
 const ScriptResultComponent: React.FC<ScriptResultProps> = ({ script, onBack, onNewScript }) => {
   const [expandedScenes, setExpandedScenes] = useState<Set<number>>(new Set([0, 1, 2]));
+  const [copiedNarration, setCopiedNarration] = useState(false);
 
   const toggleScene = (index: number) => {
     const newExpanded = new Set(expandedScenes);
@@ -67,6 +71,15 @@ const ScriptResultComponent: React.FC<ScriptResultProps> = ({ script, onBack, on
   };
 
   const totalDuration = script.cenas?.reduce((sum, cena) => sum + cena.duracao_segundos, 0) || 0;
+
+  // Get full narration text
+  const fullNarration = script.cenas?.map(cena => cena.texto_narração).join('\n\n') || '';
+
+  const copyFullNarration = () => {
+    navigator.clipboard.writeText(fullNarration);
+    setCopiedNarration(true);
+    setTimeout(() => setCopiedNarration(false), 2000);
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 py-10 px-4">
@@ -291,6 +304,46 @@ const ScriptResultComponent: React.FC<ScriptResultProps> = ({ script, onBack, on
             </div>
           </motion.div>
         )}
+
+        {/* Full Narration Text for Copy */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.65 }}
+          className="mt-8 bg-slate-800 border border-slate-700 rounded-xl p-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2 text-white font-semibold">
+              <FileText className="w-5 h-5 text-blue-400" />
+              Texto Narrado Completo
+            </div>
+            <button
+              onClick={copyFullNarration}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                copiedNarration
+                  ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                  : 'bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/30'
+              }`}
+            >
+              {copiedNarration ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  Copiado!
+                </>
+              ) : (
+                <>
+                  <Copy className="w-4 h-4" />
+                  Copiar Texto
+                </>
+              )}
+            </button>
+          </div>
+          <div className="bg-slate-900/50 border border-slate-700 rounded-lg p-4 max-h-96 overflow-y-auto">
+            <p className="text-slate-300 whitespace-pre-line leading-relaxed">
+              {fullNarration}
+            </p>
+          </div>
+        </motion.div>
 
         {/* Download Button */}
         <motion.div

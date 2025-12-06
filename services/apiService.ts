@@ -354,6 +354,13 @@ class ApiService {
             <strong>Musica sugerida:</strong> ${script.musica_sugerida}
           </div>
         ` : ''}
+
+        <div style="margin-top: 40px; padding: 25px; background: #f8fafc; border: 2px solid #3b82f6; border-radius: 12px; page-break-before: always;">
+          <h2 style="color: #3b82f6; margin-bottom: 15px; font-size: 18px;">TEXTO NARRADO COMPLETO</h2>
+          <p style="color: #374151; white-space: pre-line; line-height: 1.8;">
+${(script.cenas || []).map((cena) => cena.texto_narração).join('\n\n')}
+          </p>
+        </div>
       </body>
       </html>
     `;
