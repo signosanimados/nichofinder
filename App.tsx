@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Hero from './components/Hero';
 import StepWizard from './components/StepWizard';
 import Loading from './components/Loading';
@@ -8,6 +8,8 @@ import ViralInput from './components/ViralInput';
 import ViralResultsDashboard from './components/ViralResultsDashboard';
 import AnalysisHistory from './components/AnalysisHistory';
 import ApiKeyInput from './components/ApiKeyInput';
+import ScriptDurationSelector from './components/ScriptDurationSelector';
+import ScriptResultComponent from './components/ScriptResult';
 import { apiService } from './services/apiService';
 import {
   AppState,
@@ -15,7 +17,10 @@ import {
   AnalysisResult,
   AnalysisMode,
   ViralAnalysisInput,
-  ViralAnalysisResult
+  ViralAnalysisResult,
+  VideoIdea,
+  VideoDuration,
+  ScriptResult
 } from './types';
 import { History, Key } from 'lucide-react';
 
@@ -29,6 +34,8 @@ const App: React.FC = () => {
   const [viralResult, setViralResult] = useState<ViralAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [selectedVideoIdea, setSelectedVideoIdea] = useState<VideoIdea | null>(null);
+  const [scriptResult, setScriptResult] = useState<ScriptResult | null>(null);
 
   const handleApiKeySubmit = (openaiKey: string, youtubeKey: string) => {
     apiService.setApiKeys(openaiKey, youtubeKey);
@@ -100,10 +107,46 @@ const App: React.FC = () => {
     }
   };
 
+  // Script Generation Handlers
+  const handleGenerateScript = (videoIdea: VideoIdea) => {
+    setSelectedVideoIdea(videoIdea);
+    setAppState(AppState.SCRIPT_DURATION);
+  };
+
+  const handleScriptDurationSelect = async (duration: VideoDuration) => {
+    if (!selectedVideoIdea) return;
+
+    setAppState(AppState.SCRIPT_LOADING);
+    try {
+      const script = await apiService.generateScript(
+        selectedVideoIdea,
+        duration,
+        viralResult?.idioma_saida === 'en' ? 'en' : 'pt-br'
+      );
+      setScriptResult(script);
+      setAppState(AppState.SCRIPT_RESULT);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Erro ao gerar roteiro.");
+      setAppState(AppState.ERROR);
+    }
+  };
+
+  const handleBackToViralResults = () => {
+    setAppState(AppState.VIRAL_RESULTS);
+    setSelectedVideoIdea(null);
+  };
+
+  const handleNewScript = () => {
+    setAppState(AppState.VIRAL_RESULTS);
+    setScriptResult(null);
+    setSelectedVideoIdea(null);
+  };
+
   return (
     <div className="antialiased text-slate-50 bg-slate-900 min-h-screen">
       {/* Fixed Buttons */}
-      {appState !== AppState.LOADING && appState !== AppState.API_KEY_INPUT && (
+      {appState !== AppState.LOADING && appState !== AppState.SCRIPT_LOADING && appState !== AppState.API_KEY_INPUT && (
         <>
           {/* History Button */}
           <button
@@ -161,7 +204,31 @@ const App: React.FC = () => {
       )}
 
       {appState === AppState.VIRAL_RESULTS && viralResult && (
-        <ViralResultsDashboard data={viralResult} onReset={handleReset} />
+        <ViralResultsDashboard
+          data={viralResult}
+          onReset={handleReset}
+          onGenerateScript={handleGenerateScript}
+        />
+      )}
+
+      {appState === AppState.SCRIPT_DURATION && selectedVideoIdea && (
+        <ScriptDurationSelector
+          videoIdea={selectedVideoIdea}
+          onSelectDuration={handleScriptDurationSelect}
+          onBack={handleBackToViralResults}
+        />
+      )}
+
+      {appState === AppState.SCRIPT_LOADING && (
+        <Loading />
+      )}
+
+      {appState === AppState.SCRIPT_RESULT && scriptResult && (
+        <ScriptResultComponent
+          script={scriptResult}
+          onBack={handleBackToViralResults}
+          onNewScript={handleNewScript}
+        />
       )}
 
       {appState === AppState.ERROR && (

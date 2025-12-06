@@ -1,4 +1,4 @@
-import { UserAnswers, AnalysisResult, ViralAnalysisInput, ViralAnalysisResult } from '../types';
+import { UserAnswers, AnalysisResult, ViralAnalysisInput, ViralAnalysisResult, VideoIdea, VideoDuration, ScriptResult } from '../types';
 
 interface HistoryItem {
   id: string;
@@ -219,6 +219,144 @@ class ApiService {
     });
 
     return { ...result, analysisId: id };
+  }
+
+  // Script Generator
+  async generateScript(videoIdea: VideoIdea, duration: VideoDuration, language: 'pt-br' | 'en'): Promise<ScriptResult> {
+    const apiKey = this.getOpenAIKey();
+    if (!apiKey) {
+      throw new Error('OpenAI API Key nao configurada. Recarregue a pagina e configure suas chaves.');
+    }
+
+    const result = await this.request<ScriptResult>('/api/generate-script', {
+      method: 'POST',
+      body: JSON.stringify({ videoIdea, duration, language, apiKey }),
+    });
+
+    return result;
+  }
+
+  // Script PDF Export
+  downloadScriptPDF(script: ScriptResult): void {
+    const printContent = this.generateScriptPrintableHTML(script);
+
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      printWindow.onload = () => {
+        printWindow.print();
+      };
+    }
+  }
+
+  private generateScriptPrintableHTML(script: ScriptResult): string {
+    const date = new Date().toLocaleDateString('pt-BR');
+    const sceneTypeLabels: Record<string, string> = {
+      'gancho': 'GANCHO VIRAL',
+      'desenvolvimento': 'DESENVOLVIMENTO',
+      'plot_twist': 'PLOT TWIST',
+      'climax': 'CLIMAX',
+      'conclusao': 'CONCLUSAO',
+      'cta': 'CALL TO ACTION'
+    };
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Roteiro: ${script.titulo_video}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; max-width: 900px; margin: 0 auto; line-height: 1.6; }
+          h1 { color: #7c3aed; border-bottom: 3px solid #7c3aed; padding-bottom: 15px; font-size: 24px; }
+          h2 { color: #1e293b; margin-top: 30px; font-size: 18px; }
+          .meta { background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 30px; }
+          .meta p { margin: 5px 0; color: #475569; }
+          .scene { background: #fff; border: 2px solid #e2e8f0; padding: 20px; margin: 20px 0; border-radius: 12px; page-break-inside: avoid; }
+          .scene-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #e2e8f0; }
+          .scene-number { background: #7c3aed; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; }
+          .scene-type { color: #7c3aed; font-weight: bold; font-size: 14px; }
+          .scene-duration { background: #f1f5f9; padding: 5px 12px; border-radius: 15px; font-size: 13px; color: #64748b; }
+          .narration { background: #faf5ff; padding: 15px; border-radius: 8px; margin: 15px 0; border-left: 4px solid #7c3aed; }
+          .narration-label { font-size: 12px; color: #7c3aed; font-weight: bold; margin-bottom: 5px; }
+          .visuals { margin-top: 15px; }
+          .visual-label { font-size: 12px; color: #059669; font-weight: bold; margin-bottom: 10px; }
+          .visual-item { background: #ecfdf5; padding: 12px; border-radius: 6px; margin: 8px 0; border-left: 3px solid #059669; }
+          .visual-type { font-size: 11px; background: #059669; color: white; padding: 2px 8px; border-radius: 10px; margin-right: 8px; }
+          .visual-search { font-size: 12px; color: #64748b; margin-top: 5px; }
+          .edit-tip { background: #fef3c7; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 13px; color: #92400e; }
+          .tips-section { background: #f0fdf4; padding: 20px; border-radius: 12px; margin-top: 30px; }
+          .tips-section h3 { color: #059669; margin-bottom: 15px; }
+          .tips-section ul { padding-left: 20px; }
+          .tips-section li { margin: 8px 0; color: #374151; }
+          .music { background: #fef3c7; padding: 15px; border-radius: 8px; margin-top: 20px; }
+          .music strong { color: #92400e; }
+          @media print {
+            body { padding: 20px; }
+            .scene { break-inside: avoid; }
+          }
+        </style>
+      </head>
+      <body>
+        <h1>ROTEIRO: ${script.titulo_video}</h1>
+
+        <div class="meta">
+          <p><strong>Duracao:</strong> ${script.duracao_total}</p>
+          <p><strong>Total de Cenas:</strong> ${script.cenas?.length || 0}</p>
+          <p><strong>Gerado em:</strong> ${date}</p>
+        </div>
+
+        <h2>Resumo</h2>
+        <p>${script.resumo_roteiro}</p>
+
+        <h2>Roteiro Completo</h2>
+        ${(script.cenas || []).map((cena) => `
+          <div class="scene">
+            <div class="scene-header">
+              <div>
+                <span class="scene-number">Cena ${cena.numero}</span>
+                <span class="scene-type">${sceneTypeLabels[cena.tipo] || cena.tipo.toUpperCase()}</span>
+              </div>
+              <span class="scene-duration">${cena.duracao_segundos}s</span>
+            </div>
+
+            <div class="narration">
+              <div class="narration-label">NARRACAO / FALA:</div>
+              ${cena.texto_narração}
+            </div>
+
+            <div class="visuals">
+              <div class="visual-label">SUGESTOES VISUAIS:</div>
+              ${(cena.visuais || []).map((visual) => `
+                <div class="visual-item">
+                  <span class="visual-type">${visual.tipo.toUpperCase()}</span>
+                  ${visual.descricao}
+                  <div class="visual-search">Buscar: "${visual.sugestao_busca}"</div>
+                </div>
+              `).join('')}
+            </div>
+
+            ${cena.dica_edicao ? `<div class="edit-tip"><strong>Dica de edicao:</strong> ${cena.dica_edicao}</div>` : ''}
+          </div>
+        `).join('')}
+
+        ${script.dicas_gerais && script.dicas_gerais.length > 0 ? `
+          <div class="tips-section">
+            <h3>Dicas de Producao</h3>
+            <ul>
+              ${script.dicas_gerais.map((dica) => `<li>${dica}</li>`).join('')}
+            </ul>
+          </div>
+        ` : ''}
+
+        ${script.musica_sugerida ? `
+          <div class="music">
+            <strong>Musica sugerida:</strong> ${script.musica_sugerida}
+          </div>
+        ` : ''}
+      </body>
+      </html>
+    `;
   }
 
   // History (using localStorage)

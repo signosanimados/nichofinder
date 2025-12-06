@@ -21,14 +21,16 @@ import {
   Hash,
   BarChart3,
   Eye,
-  Play
+  Play,
+  FileText
 } from 'lucide-react';
-import { ViralAnalysisResult } from '../types';
+import { ViralAnalysisResult, VideoIdea } from '../types';
 import { apiService } from '../services/apiService';
 
 interface ViralResultsDashboardProps {
   data: ViralAnalysisResult;
   onReset: () => void;
+  onGenerateScript?: (videoIdea: VideoIdea) => void;
 }
 
 type TabId = 'overview' | 'channels' | 'hashtags' | 'opportunities' | 'formats' | 'titles' | 'thumbnails' | 'ideas' | 'calendar' | 'microniches' | 'strategy';
@@ -47,7 +49,7 @@ const tabs: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: 'strategy', label: 'Estratégia', icon: Target }
 ];
 
-const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onReset }) => {
+const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onReset, onGenerateScript }) => {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [copiedTitle, setCopiedTitle] = useState<number | null>(null);
   const [copiedHashtag, setCopiedHashtag] = useState<number | null>(null);
@@ -600,6 +602,16 @@ const ViralResultsDashboard: React.FC<ViralResultsDashboardProps> = ({ data, onR
                             <Zap className="w-3 h-3 inline mr-1" />
                             {idea.por_que_funciona}
                           </p>
+                          {/* Script Generation Button */}
+                          {onGenerateScript && (
+                            <button
+                              onClick={() => onGenerateScript(idea)}
+                              className="mt-4 flex items-center gap-2 w-full justify-center px-4 py-2.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 hover:border-purple-500/50 rounded-lg text-purple-400 hover:text-purple-300 text-sm font-medium transition-all group"
+                            >
+                              <FileText className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                              Gerar Roteiro
+                            </button>
+                          )}
                         </div>
                       </div>
                     </motion.div>

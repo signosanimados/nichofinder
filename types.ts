@@ -144,6 +144,39 @@ export interface ViralAnalysisResult {
   };
 }
 
+// ============ SCRIPT GENERATOR TYPES ============
+export type VideoDuration = '30s' | '60s' | '90s' | '3min' | '5min' | '10min';
+
+export interface ScriptGeneratorInput {
+  videoIdea: VideoIdea;
+  duration: VideoDuration;
+  language: 'pt-br' | 'en';
+}
+
+export interface SceneVisual {
+  descricao: string;
+  tipo: 'imagem' | 'video' | 'b-roll';
+  sugestao_busca: string;
+}
+
+export interface ScriptScene {
+  numero: number;
+  tipo: 'gancho' | 'desenvolvimento' | 'plot_twist' | 'climax' | 'conclusao' | 'cta';
+  duracao_segundos: number;
+  texto_narração: string;
+  visuais: SceneVisual[];
+  dica_edicao?: string;
+}
+
+export interface ScriptResult {
+  titulo_video: string;
+  duracao_total: string;
+  resumo_roteiro: string;
+  cenas: ScriptScene[];
+  dicas_gerais: string[];
+  musica_sugerida?: string;
+}
+
 // ============ APP STATE ============
 export type AnalysisMode = 'nicho_finder' | 'viral_analyzer';
 
@@ -156,5 +189,8 @@ export enum AppState {
   LOADING = 'LOADING',
   RESULTS = 'RESULTS',
   VIRAL_RESULTS = 'VIRAL_RESULTS',
+  SCRIPT_DURATION = 'SCRIPT_DURATION',
+  SCRIPT_LOADING = 'SCRIPT_LOADING',
+  SCRIPT_RESULT = 'SCRIPT_RESULT',
   ERROR = 'ERROR'
 }
